@@ -93,13 +93,7 @@ def set_tags(meta_config, config):
 def config_generator(meta_config):
   for seed in meta_config.seed:
     for num_actors in meta_config.num_actors:
-      for lr_init in meta_config.lr_init:
-        for discount in meta_config.discount:
-          for window_size in meta_config.window_size:
-            for window_step in meta_config.window_step:
-              for batch_size in meta_config.batch_size:
-                for num_simulations in meta_config.num_simulations:
-                  for num_unroll_steps in meta_config.num_unroll_steps:
+      for lr_init in meta_config.lr_init:Learner_config.num_unroll_steps:
                     for td_steps in meta_config.td_steps:
 
                       config = deepcopy(meta_config)

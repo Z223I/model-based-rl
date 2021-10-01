@@ -11,6 +11,7 @@ import ray
 import os
 
 
+# RAY
 @ray.remote
 class Learner(Logger):
 
@@ -24,6 +25,7 @@ class Learner(Logger):
     self.storage = storage
     self.config = deepcopy(config)
 
+    # RAY
     if torch.cuda.is_available() and ray.get_gpu_ids():
       self.device = torch.device("cuda")
     else:
@@ -69,12 +71,14 @@ class Learner(Logger):
     self.network.load_state_dict(state['weights'])
     self.optimizer.load_state_dict(state['optimizer'])
 
+    # RAY
     self.replay_buffer.add_initial_throughput.remote(state['total_frames'], state['total_games'])
     self.throughput['total_frames'] = state['total_frames']
     self.throughput['training_step'] = state['training_step']
     self.training_step = state['training_step'] 
 
   def save_state(self):
+    # RAY
     actor_games = ray.get(self.storage.get_stats.remote('actor_games'))
     state = {'dirs': self.dirs,
              'config': self.config,
@@ -88,9 +92,11 @@ class Learner(Logger):
     torch.save(state, path)
 
   def send_weights(self):
+    # RAY
     self.storage.store_weights.remote(self.network.get_weights(), self.training_step)
 
   def log_throughput(self):
+    # RAY
     data = ray.get(self.replay_buffer.get_throughput.remote())
 
     self.throughput['total_games'] = data['games']
@@ -121,15 +127,19 @@ class Learner(Logger):
     self.send_weights()
 
     self.throughput['time']['fps'] = time.time() 
+    # RAY
     while ray.get(self.replay_buffer.size.remote()) < self.config.stored_before_train:
       time.sleep(1)
 
     self.throughput['time']['ups'] = time.time() 
     while self.training_step < self.config.training_steps:
+    # RAY
       not_ready_batches = [self.replay_buffer.sample_batch.remote() for _ in range(self.config.batches_per_fetch)]
       while len(not_ready_batches) > 0:
+        # RAY
         ready_batches, not_ready_batches = ray.wait(not_ready_batches, num_returns=1)
 
+        # RAY
         batch = ray.get(ready_batches[0])
         self.update_weights(batch)
         self.training_step += 1
@@ -186,6 +196,7 @@ class Learner(Logger):
 
       init_value = self.config.inverse_value_transform(value) if not self.config.no_support else value
       new_errors = (init_value.squeeze() - target_values[:, 0]).cpu().numpy()
+      # RAY
       self.replay_buffer.update.remote(idxs, new_errors)
 
       if not self.config.no_target_transform:
